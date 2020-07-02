@@ -14,6 +14,7 @@ use ReflectionParameter;
 use ReflectionUnionType;
 use iggyvolz\yingaapi\ApiResponse;
 use iggyvolz\ClassProperties\Identifiable;
+use iggyvolz\yingaapi\Annotations\Promoted;
 use iggyvolz\yingaapi\Annotations\ApiMethod;
 use iggyvolz\ClassProperties\ClassProperties;
 use iggyvolz\yingaapi\Annotations\ThisResolver;
@@ -159,7 +160,13 @@ class ApiRunner extends ClassProperties
             $method->setAccessible(true);
             $args = [];
             foreach($method->getParameters() as $param) {
-                $args[] = self::getParameterValue($param, $data, $context);
+                $args[] = $val = self::getParameterValue($param, $data, $context);
+                if($objThis) {
+                    $promoted = $param->getAttributes(Promoted::class, ReflectionAttribute::IS_INSTANCEOF)[0]??null;
+                    if($promoted) {
+                        $promoted->newInstance()->promote($objThis, $param->getName(), $val);
+                    }
+                }
             }
             $response = $method->invokeArgs($objThis, $args);
             return new ApiResponse($response);
