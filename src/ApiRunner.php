@@ -7,16 +7,19 @@ use LogicException;
 use ReflectionType;
 use ReflectionClass;
 use ReflectionMethod;
+use RuntimeException;
 use ReflectionAttribute;
 use ReflectionNamedType;
 use ReflectionParameter;
 use ReflectionUnionType;
 use iggyvolz\yingaapi\ApiResponse;
+use iggyvolz\ClassProperties\Identifiable;
 use iggyvolz\yingaapi\Annotations\ApiMethod;
 use iggyvolz\ClassProperties\ClassProperties;
 use iggyvolz\yingaapi\DependencyInjection\Injected;
 use iggyvolz\yingaapi\DependencyInjection\Injectable;
 use iggyvolz\ClassProperties\Attributes\ReadOnlyProperty;
+use iggyvolz\yingaapi\Exceptions\InvalidParameterException;
 use iggyvolz\yingaapi\Exceptions\MissingParameterException;
 use iggyvolz\yingaapi\Exceptions\MethodDoesNotExistException;
 use iggyvolz\yingaapi\DependencyInjection\DependencyInjectionContext;
@@ -102,10 +105,33 @@ class ApiRunner extends ClassProperties
             $failures = array_values(array_filter($failures, fn(string $msg):bool => !empty($msg)));
             $failures = implode(", ", $failures);
             throw new DependencyInjectionFailureException($failures);
-        }
-        elseif(array_key_exists($name, $args)) {
-            // TODO type checks
-            return $args[$name];
+        } elseif(array_key_exists($name, $args)) {
+            foreach($type as $t) {
+                if(is_null($t)) {
+                    if(is_null($args[$name])) {
+                        // Passed null for a null type, this is okay
+                        return null;
+                    } else {
+                        // Nullable type, but we didn't pass null - try next type
+                        continue;
+                    }
+                }
+                // Check if the type matches
+                if(get_debug_type($args[$name]) === $t && in_array($t, ["int", "string", "bool", "float"])) {
+                    return $args[$name];
+                }
+                // Exception - if we are expecting a float and pass an int
+                if(is_int($args[$name]) && $t === "float") {
+                    return $args[$name];
+                }
+                if(is_subclass_of($t, Identifiable::class) && (is_int($args[$name]) || is_string($args[$name]))) {
+                    $val = $t::getFromIdentifier($args[$name]);
+                    if(!is_null($val)) {
+                        return $val;
+                    }
+                }
+            }
+            throw new InvalidParameterException($name);
         } else {
             throw new MissingParameterException($name);
         }
@@ -118,6 +144,12 @@ class ApiRunner extends ClassProperties
                 throw new MethodDoesNotExistException($method);
             }
             $method = $this->methods[$method];
+            if(!$method->isStatic()) {
+                // @codeCoverageIgnoreStart
+                // Not yet implemented
+                throw new RuntimeException("Not implemented");
+                // @codeCoverageIgnoreEnd
+            }
             $method->setAccessible(true);
             $args = [];
             foreach($method->getParameters() as $param) {
