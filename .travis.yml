@@ -14,7 +14,9 @@ jobs:
   include:
     - name: phpunit
       stage: test
-      script: vendor/bin/phpunit
+      script:
+        - vendor/bin/phpunit
+        - php coverage-checker.php clover.xml 100
 #    - name: phan
 #      script: vendor/bin/phan
 #    - name: psalm
