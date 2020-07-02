@@ -16,6 +16,7 @@ use iggyvolz\yingaapi\ApiResponse;
 use iggyvolz\ClassProperties\Identifiable;
 use iggyvolz\yingaapi\Annotations\ApiMethod;
 use iggyvolz\ClassProperties\ClassProperties;
+use iggyvolz\yingaapi\Annotations\ThisResolver;
 use iggyvolz\yingaapi\DependencyInjection\Injected;
 use iggyvolz\yingaapi\DependencyInjection\Injectable;
 use iggyvolz\ClassProperties\Attributes\ReadOnlyProperty;
@@ -140,22 +141,27 @@ class ApiRunner extends ClassProperties
     public function run(string $method, array $data, DependencyInjectionContext $context):ApiResponse
     {
         try {
+            $methodName = $method;
             if(!array_key_exists($method, $this->methods)) {
                 throw new MethodDoesNotExistException($method);
             }
             $method = $this->methods[$method];
+            $objThis = null;
             if(!$method->isStatic()) {
-                // @codeCoverageIgnoreStart
-                // Not yet implemented
-                throw new RuntimeException("Not implemented");
-                // @codeCoverageIgnoreEnd
+                // Get $this from ThisResolver
+                $thisResolver = $method->getAttributes(ThisResolver::class, ReflectionAttribute::IS_INSTANCEOF)[0]??null;
+                if(is_null($thisResolver)) {
+                    throw new LogicException("No \$this resolver found on ".$methodName);
+                }
+                $thisResolver = $thisResolver->newInstance();
+                $objThis = $thisResolver->getThis($method, $data);
             }
             $method->setAccessible(true);
             $args = [];
             foreach($method->getParameters() as $param) {
                 $args[] = self::getParameterValue($param, $data, $context);
             }
-            $response = $method->invokeArgs(null, $args);
+            $response = $method->invokeArgs($objThis, $args);
             return new ApiResponse($response);
         } catch(Throwable $e) {
             return new ApiResponse($e);
