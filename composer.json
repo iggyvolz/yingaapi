@@ -1,0 +1,31 @@
+{
+    "name": "iggyvolz/yingaapi",
+    "description": "Basic API framework for PHP",
+    "type": "library",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Katie Volz",
+            "email": "iggyvolz@gmail.com"
+        }
+    ],
+    "require": {
+        "iggyvolz/class-properties": "dev-main",
+        "php": "^8.0-dev"
+    },
+    "require-dev": {
+        "phpunit/phpunit": "dev-master",
+        "phpunit/php-code-coverage": "dev-master",
+        "sebastian/global-state": "dev-master"
+    },
+    "autoload": {
+        "psr-4": {
+            "iggyvolz\\yingaapi\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "iggyvolz\\yingaapi\\tests\\": "tests/"
+        }
+    }
+}
