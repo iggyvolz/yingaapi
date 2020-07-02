@@ -19,7 +19,7 @@ class PromotionTest extends TestCase
     private DependencyInjectionContext $context;
     public function setUp():void
     {
-        $this->runner = new ApiRunner([DummyType::class]);
+        $this->runner = new ApiRunner([PromotionTest__DummyType::class]);
         $this->context = new DependencyInjectionContext;
     }
     public function testSetMyName():void
@@ -34,17 +34,17 @@ class PromotionTest extends TestCase
     }
 }
 
-class DummyType extends ClassProperties
+class PromotionTest__DummyType extends ClassProperties
 {
     <<Property>> private string $name;
     <<ApiMethod("SetMyName")>>
-    <<DummyResolver>>
+    <<PromotionTest__DummyResolver>>
     public function setMyName(<<Promoted>> string $name):string
     {
         return $this->name;
     }
     <<ApiMethod("SetMyNameAlt")>>
-    <<DummyResolver>>
+    <<PromotionTest__DummyResolver>>
     public function setMyNameAlt(<<Promoted("name")>> string $myName):string
     {
         return $this->name;
@@ -52,10 +52,10 @@ class DummyType extends ClassProperties
 }
 
 <<Attribute(Attribute::TARGET_METHOD)>>
-class DummyResolver extends ThisResolver
+class PromotionTest__DummyResolver extends ThisResolver
 {
     public function getThis(ReflectionMethod $method, array $data):object
     {
-        return new DummyType;
+        return new PromotionTest__DummyType;
     }
 }
