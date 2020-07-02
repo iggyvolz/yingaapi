@@ -3,31 +3,33 @@ declare(strict_types=1);
 namespace iggyvolz\yingaapi\tests;
 
 use LogicException;
+use RuntimeException;
 use PHPUnit\Framework\TestCase;
 use iggyvolz\yingaapi\ApiRunner;
+use iggyvolz\ClassProperties\Identifiable;
 use iggyvolz\yingaapi\Annotations\ApiMethod;
+use iggyvolz\ClassProperties\Attributes\Identifier;
 use iggyvolz\yingaapi\DependencyInjection\Injected;
 use iggyvolz\yingaapi\DependencyInjection\Injectable;
+use iggyvolz\ClassProperties\Attributes\ReadOnlyProperty;
+use iggyvolz\yingaapi\Exceptions\InvalidParameterException;
 use iggyvolz\yingaapi\Exceptions\MissingParameterException;
 use iggyvolz\yingaapi\Exceptions\MethodDoesNotExistException;
 use iggyvolz\yingaapi\DependencyInjection\DependencyInjectionContext;
-use iggyvolz\yingaapi\Exceptions\DependencyInjectionFailureException;
 
-class ApiRunnerTest__NullInjectable implements Injectable
+class ApiRunnerTest__Identifiable extends Identifiable
 {
-    public static function Get(DependencyInjectionContext $context):static
+    private function __construct(<<Identifier>> <<ReadOnlyProperty>> private string $s) {}
+    public static function getFromIdentifier($identifier): ?self
     {
-        throw new DependencyInjectionFailureException("a");
+        if(is_string($identifier)) {
+            return new self($identifier);
+        } else {
+            return null;
+        }
     }
 }
 
-class ApiRunnerTest__NullInjectable2 implements Injectable
-{
-    public static function Get(DependencyInjectionContext $context):static
-    {
-        throw new DependencyInjectionFailureException("b");
-    }
-}
 
 class ApiRunnerTest extends TestCase
 {
@@ -48,44 +50,24 @@ class ApiRunnerTest extends TestCase
                 {
                     return $foo+1;
                 }
-                <<ApiMethod("TestDependencyInjection")>>
-                public static function exampleDependencyInjection(<<Injected>> DependencyInjectionContext $foo):int
-                {
-                    return spl_object_id($foo);
-                }
                 public static function notAnApiMethod():int
                 {
                     return 2;
                 }
-                <<ApiMethod("InvalidDependencyInjection")>>
-                public static function invalidDependencyInjection(<<Injected>> $untyped):?bool
+                <<ApiMethod("NullParameterTest")>>
+                public static function nullParameterTest(?int $i):?int
                 {
-                    return null;
+                    return $i;
                 }
-                <<ApiMethod("NullInjected")>>
-                public static function nullInjected(<<Injected>> ?ApiRunnerTest__NullInjectable $ni):?int
+                <<ApiMethod("FloatMethod")>>
+                public static function floatMethod(float $f):float
                 {
-                    return is_null($ni) ? null : spl_object_id($ni);
+                    return $f;
                 }
-                <<ApiMethod("IllegalNullInjected")>>
-                public static function illegalNullInjected(<<Injected>> ApiRunnerTest__NullInjectable $ni):int
+                <<ApiMethod("IdentifiableMethod")>>
+                public static function identifiableTest(ApiRunnerTest__Identifiable $thing):string
                 {
-                    return spl_object_id($ni);
-                }
-                <<ApiMethod("OneOfMultiple")>>
-                public static function injectOneOfMultiple(<<Injected>> ApiRunnerTest__NullInjectable|DependencyInjectionContext $ni):int
-                {
-                    return spl_object_id($ni);
-                }
-                <<ApiMethod("IllegalInjection")>>
-                public static function illegalInjection(<<Injected>> int $foo):int
-                {
-                    return $foo;
-                }
-                <<ApiMethod("MultipleInjectionFailures")>>
-                public static function multipleInjectionFailures(<<Injected>> ApiRunnerTest__NullInjectable|ApiRunnerTest__NullInjectable2 $ni):int
-                {
-                    return spl_object_id($ni);
+                    return $thing->s;
                 }
             })
         ]);
@@ -123,48 +105,35 @@ class ApiRunnerTest extends TestCase
         $result = $this->runner->run("MyAdder", [], $this->context)->__toString();
         $this->assertSame('{"success":false,"error":{"type":"iggyvolz\\\\yingaapi\\\\Exceptions\\\\MissingParameterException","message":"Missing parameter foo"}}', $result);
     }
-    public function testDependencyInjection():void
-    {
-        $result = $this->runner->run("TestDependencyInjection", [], $this->context)->getResponse();
-        $this->assertSame(spl_object_id($this->context), $result);
-    }
     public function testNotAnApiMethod():void
     {
         $this->expectException(MethodDoesNotExistException::class);
         $this->runner->run("notAnApiMethod", [], $this->context)->getResponse();
     }
-    public function testInvalidDependencyInjection():void
+    public function testNullParameter():void
     {
-        $this->expectException(LogicException::class);
-        $this->expectExceptionMessage("Cannot inject a non-typed variable");
-        $this->runner->run("InvalidDependencyInjection", [], $this->context)->getResponse();
-    }
-    public function testNullInjected():void
-    {
-        $result = $this->runner->run("NullInjected", [], $this->context)->getResponse();
+        $result = $this->runner->run("NullParameterTest", ["i" => null], $this->context)->getResponse();
         $this->assertNull($result);
     }
-    public function testIllegalNullInjected():void
+    public function testNullableParameter():void
     {
-        $this->expectException(DependencyInjectionFailureException::class);
-        $this->expectExceptionMessage("a");
-        $result = $this->runner->run("IllegalNullInjected", [], $this->context)->getResponse();
+        $result = $this->runner->run("NullParameterTest", ["i" => 7], $this->context)->getResponse();
+        $this->assertSame(7, $result);
     }
-    public function testMultipleDependencyInjection():void
+    public function testIntToFloatPromotion():void
     {
-        $result = $this->runner->run("OneOfMultiple", [], $this->context)->getResponse();
-        $this->assertSame(spl_object_id($this->context), $result);
+        $result = $this->runner->run("FloatMethod", ["f" => 7], $this->context)->getResponse();
+        $this->assertEquals(7, $result);
     }
-    public function testIllegalInjectionType():void
+    public function testIdentifiableMethod():void
     {
-        $this->expectException(LogicException::class);
-        $this->expectExceptionMessage("Attempted to inject a non-injectable class");
-        $result = $this->runner->run("IllegalInjection", [], $this->context)->getResponse();
+        $result = $this->runner->run("IdentifiableMethod", ["thing" => "foo"], $this->context)->getResponse();
+        $this->assertEquals("foo", $result);
     }
-    public function testMultipleInjectionFailures():void
+    public function testInvalidParameter():void
     {
-        $this->expectException(DependencyInjectionFailureException::class);
-        $this->expectExceptionMessage("a, b");
-        $result = $this->runner->run("MultipleInjectionFailures", [], $this->context)->getResponse();
+        $this->expectException(InvalidParameterException::class);
+        $this->expectExceptionMessage("Invalid parameter thing");
+        $result = $this->runner->run("IdentifiableMethod", ["thing" => 7], $this->context)->getResponse();
     }
 }
