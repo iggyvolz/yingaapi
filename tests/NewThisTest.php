@@ -2,24 +2,21 @@
 declare(strict_types=1);
 namespace iggyvolz\yingaapi\tests;
 
-use Attribute;
-use ReflectionMethod;
 use PHPUnit\Framework\TestCase;
 use iggyvolz\yingaapi\ApiRunner;
-use iggyvolz\yingaapi\Annotations\Promoted;
+use iggyvolz\yingaapi\Annotations\NewThis;
 use iggyvolz\yingaapi\Annotations\ApiMethod;
 use iggyvolz\ClassProperties\ClassProperties;
-use iggyvolz\yingaapi\Annotations\ThisResolver;
-use iggyvolz\ClassProperties\Attributes\Property;
+use iggyvolz\ClassProperties\Attributes\ReadOnlyProperty;
 use iggyvolz\yingaapi\DependencyInjection\DependencyInjectionContext;
 
-class PromotionTest extends TestCase
+class NewThisTest extends TestCase
 {
     private ApiRunner $runner;
     private DependencyInjectionContext $context;
     public function setUp():void
     {
-        $this->runner = new ApiRunner([PromotionTest__DummyType::class]);
+        $this->runner = new ApiRunner([NewThisTest__DummyType::class]);
         $this->context = new DependencyInjectionContext;
     }
     public function testSetMyName():void
@@ -34,28 +31,21 @@ class PromotionTest extends TestCase
     }
 }
 
-class PromotionTest__DummyType extends ClassProperties
+class NewThisTest__DummyType extends ClassProperties
 {
-    <<Property>> private string $name;
+    private function __construct(<<ReadOnlyProperty>> private string $name) {}
     <<ApiMethod("SetMyName")>>
-    <<PromotionTest__DummyResolver>>
-    public function setMyName(<<Promoted>> string $name):string
+    <<NewThis>>
+    public function setMyName(string $name):string
     {
         return $this->name;
     }
     <<ApiMethod("SetMyNameAlt")>>
-    <<PromotionTest__DummyResolver>>
-    public function setMyNameAlt(<<Promoted("name")>> string $myName):string
+    <<NewThis([
+        "name" => "myName"
+    ])>>
+    public function setMyNameAlt(string $myName):string
     {
         return $this->name;
-    }
-}
-
-<<Attribute(Attribute::TARGET_METHOD)>>
-class PromotionTest__DummyResolver extends ThisResolver
-{
-    public function getThis(ReflectionMethod $method, array $data):object
-    {
-        return new PromotionTest__DummyType;
     }
 }
