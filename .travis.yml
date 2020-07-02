@@ -16,7 +16,7 @@ jobs:
       stage: test
       script:
         - vendor/bin/phpunit
-        - php coverage-checker.php clover.xml 100
+        # - php coverage-checker.php clover.xml 100 # Coverage driver is not available on nightly
 #    - name: phan
 #      script: vendor/bin/phan
 #    - name: psalm
